@@ -372,7 +372,8 @@ const config = {
     },
     output: {
         filename: '[name].js',
-        path: path.resolve(__dirname, 'lib', 'backend')
+        path: path.resolve(__dirname, 'lib', 'backend'),
+        devtoolModuleFilenameTemplate: 'webpack:///[absolute-resource-path]?[loaders]',
     },
     ${this.ifElectron(`externals: {
         electron: 'require("electron")'
@@ -400,6 +401,11 @@ const config = {
                 options: {
                     name: 'native/[name].[ext]'
                 }
+            },
+            {
+                test: /\\.js$/,
+                enforce: 'pre',
+                loader: 'source-map-loader'
             },
             // jsonc-parser exposes its UMD implementation by default, which
             // confuses Webpack leading to missing js in the bundles.
