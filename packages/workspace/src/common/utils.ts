@@ -17,22 +17,15 @@
 // TODO get rid of util files, replace with methods in a responsible class
 
 import URI from '@theia/core/lib/common/uri';
-import { EnvVariablesServer } from '@theia/core/lib/common/env-variables';
 import { injectable } from '@theia/core/shared/inversify';
 import { FileStat } from '@theia/filesystem/lib/common/files';
 import { MaybePromise } from '@theia/core';
 
+/**
+ * @deprecated Since 1.37.0. Use `CommonWorkspaceUtils#getWorkspaceExtension` instead.
+ */
 export const THEIA_EXT = 'theia-workspace';
 export const VSCODE_EXT = 'code-workspace';
-
-/**
- * @deprecated since 1.4.0 - because of https://github.com/eclipse-theia/theia/tree/master/doc/coding-guidelines.md#di-function-export,
- * use `WorkspaceService.getUntitledWorkspace` instead
- */
-export async function getTemporaryWorkspaceFileUri(envVariableServer: EnvVariablesServer): Promise<URI> {
-    const configDirUri = await envVariableServer.getConfigDirUri();
-    return new URI(configDirUri).resolve(`Untitled.${THEIA_EXT}`);
-}
 
 @injectable()
 export class CommonWorkspaceUtils {
@@ -43,11 +36,29 @@ export class CommonWorkspaceUtils {
      */
     isWorkspaceFile(candidate: FileStat | URI): boolean {
         const uri = FileStat.is(candidate) ? candidate.resource : candidate;
-        return uri.path.ext === `.${THEIA_EXT}` || uri.path.ext === `.${VSCODE_EXT}`;
+        return uri.path.ext === `.${this.getWorkspaceExtension()}` || (this.isVSCodeWorkspaceSelectionEnabled() && uri.path.ext === `.${VSCODE_EXT}`);
     }
 
     isUntitledWorkspace(candidate?: URI): boolean {
         return !!candidate && this.isWorkspaceFile(candidate) && candidate.path.base.startsWith('Untitled');
+    }
+
+    /**
+     * Determines whether the workspace service allows to select `.code-workspace` as valid workspaces for the application.
+     *
+     * If this method returns `false`, only workspace file that fit the `CommonWorkspaceUtils#getWorkspaceExtension` return value can be selected.
+     */
+    isVSCodeWorkspaceSelectionEnabled(): boolean {
+        return true;
+    }
+
+    /**
+     * Returns the file extension used for all workspace files for this application.
+     *
+     * Returns `theia-workspace` by default.
+     */
+    getWorkspaceExtension(): string {
+        return THEIA_EXT;
     }
 
     async getUntitledWorkspaceUri(configDirUri: URI, isAcceptable: (candidate: URI) => MaybePromise<boolean>, warnOnHits?: () => unknown): Promise<URI> {
@@ -56,7 +67,7 @@ export class CommonWorkspaceUtils {
         let attempts = 0;
         do {
             attempts++;
-            uri = parentDir.resolve(`Untitled-${Math.round(Math.random() * 1000)}.${THEIA_EXT}`);
+            uri = parentDir.resolve(`Untitled-${Math.round(Math.random() * 1000)}.${this.getWorkspaceExtension()}`);
             if (attempts === 10) {
                 warnOnHits?.();
             }

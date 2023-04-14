@@ -20,6 +20,7 @@ import { InMemoryResources, isArray, isObject } from '@theia/core/lib/common';
 import { IJSONSchema } from '@theia/core/lib/common/json-schema';
 import URI from '@theia/core/lib/common/uri';
 import { Deferred } from '@theia/core/lib/common/promise-util';
+import { CommonWorkspaceUtils, VSCODE_EXT } from '../common';
 
 export interface SchemaUpdateMessage {
     key: string,
@@ -39,6 +40,7 @@ export class WorkspaceSchemaUpdater implements JsonSchemaContribution {
     protected safeToHandleQueue = new Deferred();
 
     @inject(InMemoryResources) protected readonly inmemoryResources: InMemoryResources;
+    @inject(CommonWorkspaceUtils) protected readonly workspaceUtils: CommonWorkspaceUtils;
 
     @postConstruct()
     protected init(): void {
@@ -47,8 +49,12 @@ export class WorkspaceSchemaUpdater implements JsonSchemaContribution {
     }
 
     registerSchemas(context: JsonSchemaRegisterContext): void {
+        const extensions = [this.workspaceUtils.getWorkspaceExtension()];
+        if (this.workspaceUtils.isVSCodeWorkspaceSelectionEnabled()) {
+            extensions.push(VSCODE_EXT);
+        }
         context.registerSchema({
-            fileMatch: ['*.theia-workspace', '*.code-workspace'],
+            fileMatch: extensions.map(ext => `*.${ext}`),
             url: this.uri.toString()
         });
     }
